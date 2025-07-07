@@ -25,8 +25,19 @@ wss.on("connection", async (clientSocket, req) => {
   const clientIP = req.socket.remoteAddress;
   console.log(`[INFO] New connection from ${clientIP}`);
 
-  const tokenPath = req.url.replace(/^\/vnc-proxy\//, "");
+  console.warn("[WARN] Request Object", req);
+
+  const parsedUrl = new URL(req.url, `ws://${req.headers.host}`);
+
+  // Extract token from the pathname
+  const tokenPath = parsedUrl.pathname.replace(/^\/vnc-proxy\//, "");
   const token = decodeURIComponent(tokenPath);
+
+  // Extract password from query string
+  const password = parsedUrl.searchParams.get("password");
+
+  console.log(`[DEBUG] Received token: ${token}`);
+  console.log(`[DEBUG] Received password: ${password}`);
 
   if (!token) {
     console.warn("[WARN] No token provided in URL");
@@ -37,7 +48,16 @@ wss.on("connection", async (clientSocket, req) => {
   console.log(`[DEBUG] Received token: ${token}`);
 
   try {
-    const response = await axios.post(LARAVEL_VERIFY_URL, { token });
+    const response = await axios.post(
+      LARAVEL_VERIFY_URL,
+      { token }, // only token in body
+      {
+        headers: {
+          Authorization: `Bearer ${password}`,
+        },
+      }
+    );
+
     const { namespace, vm, api_token } = response.data;
 
     console.log(
