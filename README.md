@@ -89,6 +89,68 @@ node proxy-server.js
 
 ---
 
+## 🔐 AES-GCM Token Encryption Support (Laravel + Node.js)
+
+This proxy now supports **secure AES-256-GCM encryption** for API tokens, allowing `api_token` returned by Laravel to be safely decrypted and used in Node.js.
+
+### ✅ Laravel Side
+
+The Laravel API encrypts the `api_token` using AES-GCM format before returning:
+
+```php
+return response()->json([
+    'namespace' => $namespace,
+    'vm' => $vm->vm_id,
+    'api_token' => encryptApiTokenGCM($kubeApiToken)  // Encrypted token
+]);
+```
+
+This `encryptApiTokenGCM()` method generates output in the format:
+
+```
+base64(iv):base64(cipherText):base64(tag)
+```
+
+Make sure the encryption key is stored in Laravel’s `.env`:
+
+```env
+VNC_API_ENCRYPTION_KEY=3X1UluR5cyQ57RCZcmCbiTscm8DihRqpiO2LWMDeBNw=
+```
+
+And referenced in `config/app.php`:
+
+```php
+'VNC_API_ENCRYPTION_KEY' => env('VNC_API_ENCRYPTION_KEY'),
+```
+
+---
+
+### ✅ Node.js Side
+
+The proxy uses Web Crypto API to decrypt the token. To enable this, Node.js `crypto.webcrypto` is used.
+
+Make sure your environment uses **Node.js v16+**.
+
+In `proxy-server.js`, this is added:
+
+```js
+const { webcrypto } = require("crypto");
+const crypto = webcrypto;
+```
+
+Also, include this in `.env`:
+
+```env
+VNC_API_ENCRYPTION_KEY=base64
+```
+
+---
+
+### ⚠️ Compatibility Notes
+
+- Laravel's built-in `Crypt::encryptString()` is **not** compatible with JavaScript Web Crypto API.
+- Use **manual AES-GCM encryption** on the Laravel side to ensure token decryptability in the proxy.
+
 ## 🛡️ Security Notes
 
 - TLS certificate validation is **disabled** by default (`NODE_TLS_REJECT_UNAUTHORIZED=0`) for internal cluster access. **Use with caution in production.**
